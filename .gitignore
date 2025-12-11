@@ -7,3 +7,11 @@ data/
 *.egg-info/
 .uv/
 uv.lock
+
+# Mac Crap
+.DS_Store
+__MACOSX
+
+*.mp4
+*.zip
+*.csv

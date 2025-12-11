@@ -1,0 +1,1 @@
+`MODEL_PATH=output/best_model DATA_DIR=game_state_incrediballs uv run python train.py `

@@ -15,8 +15,8 @@ from utils import NUM_FRAMES, read_video_pyav, sample_frame_indices
 
 MODEL_NAME = "MCG-NJU/videomae-small-finetuned-kinetics"
 IMAGE_SIZE = 224
-ID2LABEL = {0: "no_play", 1: "play"}
-LABEL2ID = {"no_play": 0, "play": 1}
+ID2LABEL = {0: "no-play", 1: "play"}
+LABEL2ID = {"no-play": 0, "play": 1}
 
 
 class VideoDataset(Dataset):
@@ -25,9 +25,10 @@ class VideoDataset(Dataset):
         self.samples = []
 
         root_path = Path(root_dir) / split
-        for label_name in ["no_play", "play"]:
+        for label_name in ["no-play", "play"]:
             label_dir = root_path / label_name
             if not label_dir.exists():
+                print(f"Label Dir: {label_dir} does not exist, skipping")
                 continue
             label_id = LABEL2ID[label_name]
             for video_path in label_dir.glob("*.mp4"):
@@ -72,10 +73,12 @@ def collate_fn(examples):
 
 
 def main():
+    model_path= os.environ.get("MODEL_PATH", MODEL_NAME)
     data_dir = os.environ.get("DATA_DIR", "./data")
     output_dir = os.environ.get("OUTPUT_DIR", "./output")
 
-    processor = VideoMAEImageProcessor.from_pretrained(MODEL_NAME)
+    print("Using", model_path, data_dir, output_dir)
+    processor = VideoMAEImageProcessor.from_pretrained(model_path)
     model = VideoMAEForVideoClassification.from_pretrained(
         MODEL_NAME,
         num_labels=2,
