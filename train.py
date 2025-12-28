@@ -10,8 +10,10 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
+from av.container.input import InputContainer
 from sklearn.metrics import accuracy_score, f1_score
-from utils import NUM_FRAMES, read_video_pyav, sample_frame_indices
+from utils import NUM_FRAMES, read_video_pyav, sample_frame_indices, normalize_video
+from typing import cast
 
 MODEL_NAME = "MCG-NJU/videomae-small-finetuned-kinetics"
 IMAGE_SIZE = 224
@@ -40,7 +42,7 @@ class VideoDataset(Dataset):
     def __getitem__(self, idx):
         video_path, label = self.samples[idx]
 
-        container = av.open(video_path)
+        container: InputContainer = cast(InputContainer, av.open(video_path))
         total_frames = container.streams.video[0].frames
         if total_frames == 0:
             total_frames = sum(1 for _ in container.decode(video=0))
@@ -49,6 +51,8 @@ class VideoDataset(Dataset):
         indices = sample_frame_indices(NUM_FRAMES, 1, total_frames)
         video = read_video_pyav(container, indices)
         container.close()
+
+        video = normalize_video(video)
 
         inputs = self.processor(list(video), return_tensors="pt")
         inputs = {k: v.squeeze(0) for k, v in inputs.items()}

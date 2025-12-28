@@ -1,7 +1,7 @@
 import av
 import torch
 from transformers import VideoMAEImageProcessor, VideoMAEForVideoClassification
-from utils import NUM_FRAMES, read_video_pyav, sample_frame_indices
+from utils import NUM_FRAMES, read_video_pyav, sample_frame_indices, normalize_video
 
 
 def predict(video_path: str, model_path: str):
@@ -18,6 +18,8 @@ def predict(video_path: str, model_path: str):
     indices = sample_frame_indices(NUM_FRAMES, 1, total_frames)
     video = read_video_pyav(container, indices)
     container.close()
+
+    video = normalize_video(video)
 
     inputs = processor(list(video), return_tensors="pt")
 
