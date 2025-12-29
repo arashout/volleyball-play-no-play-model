@@ -10,6 +10,7 @@ python3 scripts/extract_screenshots.py "/Users/arashoutadi/volleyball-videos/bal
 # Label images with Claude Vision
 # EXPORT ANTHROPIC_API_KEY=""
 python -m action_detector.label_images './screenshots/0_24*.jpg' -o labels/
+python -m action_detector.label_images './screenshots/3_33*.jpg' -o labels/ --skip-empty
 
 # View labels
 uv run python -m action_detector.view_labels './screenshots/3_05*.jpg' -l ./labels
