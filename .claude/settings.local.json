@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(agent-deck:agent-deck)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(cat:*)",
+      "Bash(sips:*)",
+      "Skill(superpowers:brainstorming)"
+    ]
+  }
+}

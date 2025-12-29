@@ -46,6 +46,7 @@ def extract_screenshots(video_path: str, csv_path: str, output_dir: str = "scree
                     'ffmpeg', '-y', '-ss', timestamp,
                     '-i', str(video),
                     '-frames:v', '1', '-q:v', '2',
+                    '-vf', 'scale=640:640:force_original_aspect_ratio=decrease,pad=640:640:(ow-iw)/2:(oh-ih)/2:black',
                     str(output_path)
                 ]
                 subprocess.run(cmd, capture_output=True)
