@@ -6,7 +6,12 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(cat:*)",
       "Bash(sips:*)",
-      "Skill(superpowers:brainstorming)"
+      "Skill(superpowers:brainstorming)",
+      "Bash(python -m ruff:*)",
+      "Bash(python -m pyright:*)",
+      "Bash(find:*)",
+      "Bash(head:*)",
+      "Bash(python export_pose_onnx.py:*)"
     ]
   }
 }

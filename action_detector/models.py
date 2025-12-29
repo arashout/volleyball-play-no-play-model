@@ -11,7 +11,7 @@ class ActionType(IntEnum):
     DIG = 5
 
 
-class Detection(BaseModel):
+class FrameDetection(BaseModel):
     action: ActionType
     x_center: float
     y_center: float
@@ -23,14 +23,5 @@ class Detection(BaseModel):
         return f"{self.action.value} {self.x_center:.6f} {self.y_center:.6f} {self.width:.6f} {self.height:.6f}"
 
 
-class ImageAnalysis(BaseModel):
-    detections: list[Detection]
-
-    def to_yolo_format(self) -> str:
-        return "\n".join(d.to_yolo_line() for d in self.detections)
-
-    def to_reasoning_format(self) -> str:
-        lines = []
-        for i, d in enumerate(self.detections):
-            lines.append(f"[{i}] {d.action.name}: {d.reasoning}")
-        return "\n".join(lines)
+class ClipAnalysis(BaseModel):
+    frames: list[FrameDetection | None]

@@ -12,5 +12,5 @@ python3 scripts/extract_screenshots.py "/Users/arashoutadi/volleyball-videos/bal
 python -m action_detector.label_images './screenshots/0_24*.jpg' -o labels/
 
 # View labels
-python -m action_detector.view_labels screenshots labels
+uv run python -m action_detector.view_labels './screenshots/3_05*.jpg' -l ./labels
 ```

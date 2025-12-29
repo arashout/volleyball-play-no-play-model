@@ -2,17 +2,18 @@ import argparse
 import base64
 import glob
 import os
+import re
 import sys
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import cast
 
 import anthropic
 
-from .models import ImageAnalysis
+from .models import ClipAnalysis
 from .prompts import SYSTEM_PROMPT
 
-BATCH_SIZE = 10
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
@@ -23,11 +24,10 @@ def load_processed_log(output_dir: Path) -> set[str]:
     return set(log_path.read_text().strip().split("\n"))
 
 
-def append_to_processed_log(output_dir: Path, filenames: list[str]):
+def append_to_processed_log(output_dir: Path, clip_name: str):
     log_path = output_dir / "processed_log.txt"
     with open(log_path, "a") as f:
-        for name in filenames:
-            f.write(f"{name}\n")
+        f.write(f"{clip_name}\n")
 
 
 def get_image_media_type(path: Path) -> str:
@@ -45,43 +45,65 @@ def encode_image(path: Path) -> str:
     return base64.standard_b64encode(path.read_bytes()).decode("utf-8")
 
 
-def analyze_image(client: anthropic.Anthropic, image_path: Path) -> ImageAnalysis:
-    media_type = get_image_media_type(image_path)
-    image_data = encode_image(image_path)
+def extract_clip_name(filename: str) -> str:
+    match = re.match(r"(.+)_f\d+", filename)
+    if match:
+        return match.group(1)
+    return filename
 
-    messages = cast(
-        list,
-        [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_data,
-                        },
-                    },
-                    {
-                        "type": "text",
-                        "text": f"Filename: {image_path.name}\n\nAnalyze this volleyball image and return the detections.",
-                    },
-                ],
-            }
-        ],
-    )
+
+def extract_frame_number(filename: str) -> int:
+    match = re.search(r"_f(\d+)", filename)
+    if match:
+        return int(match.group(1))
+    return 0
+
+
+def group_images_by_clip(images: list[Path]) -> dict[str, list[Path]]:
+    clips = defaultdict(list)
+    for img in images:
+        clip_name = extract_clip_name(img.stem)
+        clips[clip_name].append(img)
+    for clip_name in clips:
+        clips[clip_name].sort(key=lambda p: extract_frame_number(p.stem))
+    return dict(clips)
+
+
+def analyze_clip(client: anthropic.Anthropic, clip_name: str, frames: list[Path]) -> ClipAnalysis:
+    content = []
+    for i, frame_path in enumerate(frames):
+        media_type = get_image_media_type(frame_path)
+        image_data = encode_image(frame_path)
+        content.append({
+            "type": "text",
+            "text": f"Frame {i}:",
+        })
+        content.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": image_data,
+            },
+        })
+
+    content.append({
+        "type": "text",
+        "text": f"Clip: {clip_name}\n\nAnalyze these {len(frames)} frames and return detections for frames with ball contact.",
+    })
+
+    messages = cast(list, [{"role": "user", "content": content}])
 
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=1024,
+        max_tokens=2048,
         system=SYSTEM_PROMPT,
         messages=messages,
         tools=[
             {
                 "name": "report_detections",
-                "description": "Report the detected volleyball actions in the image",
-                "input_schema": ImageAnalysis.model_json_schema(),
+                "description": "Report the detected volleyball actions across the clip frames",
+                "input_schema": ClipAnalysis.model_json_schema(),
             }
         ],
         tool_choice={"type": "tool", "name": "report_detections"},
@@ -89,63 +111,49 @@ def analyze_image(client: anthropic.Anthropic, image_path: Path) -> ImageAnalysi
 
     for block in message.content:
         if block.type == "tool_use" and block.name == "report_detections":
-            return ImageAnalysis.model_validate(block.input)
+            return ClipAnalysis.model_validate(block.input)
 
-    return ImageAnalysis(detections=[])
+    return ClipAnalysis(frames=[])
 
 
-def process_batch(
+def process_clip(
     client: anthropic.Anthropic,
-    images: list[Path],
+    clip_name: str,
+    frames: list[Path],
     output_dir: Path,
-) -> tuple[list[str], int]:
-    processed = []
-    total_detections = 0
+) -> int:
+    try:
+        result = analyze_clip(client, clip_name, frames)
+        print(f"\n=== {clip_name} ({len(frames)} frames) ===")
 
-    for image_path in images:
-        try:
-            result = analyze_image(client, image_path)
-            label_path = output_dir / f"{image_path.stem}.txt"
-            label_path.write_text(result.to_yolo_format())
-            if result.detections:
-                reasoning_path = output_dir / f"{image_path.stem}_reasoning.txt"
-                reasoning_path.write_text(result.to_reasoning_format())
-            print(f"\n--- {image_path.name} ---")
-            if result.detections:
-                print(f"Labels:\n{result.to_yolo_format()}")
-                print(f"Reasoning:\n{result.to_reasoning_format()}")
+        detection_count = 0
+        for i, frame_path in enumerate(frames):
+            detection = result.frames[i] if i < len(result.frames) else None
+            label_path = output_dir / f"{frame_path.stem}.txt"
+
+            if detection:
+                label_path.write_text(detection.to_yolo_line())
+                reasoning_path = output_dir / f"{frame_path.stem}_reasoning.txt"
+                reasoning_path.write_text(f"{detection.action.name}: {detection.reasoning}")
+                print(f"  Frame {i}: {detection.action.name}")
+                detection_count += 1
             else:
-                print("No detections")
-            processed.append(image_path.name)
-            total_detections += len(result.detections)
-        except anthropic.RateLimitError:
-            print("Rate limited, waiting 60s...")
-            time.sleep(60)
-            try:
-                result = analyze_image(client, image_path)
-                label_path = output_dir / f"{image_path.stem}.txt"
-                label_path.write_text(result.to_yolo_format())
-                if result.detections:
-                    reasoning_path = output_dir / f"{image_path.stem}_reasoning.txt"
-                    reasoning_path.write_text(result.to_reasoning_format())
-                print(f"\n--- {image_path.name} ---")
-                if result.detections:
-                    print(f"Labels:\n{result.to_yolo_format()}")
-                    print(f"Reasoning:\n{result.to_reasoning_format()}")
-                else:
-                    print("No detections")
-                processed.append(image_path.name)
-                total_detections += len(result.detections)
-            except Exception as e:
-                print(f"Error processing {image_path.name} after retry: {e}")
-        except Exception as e:
-            print(f"Error processing {image_path.name}: {e}")
+                label_path.write_text("")
 
-    return processed, total_detections
+        print(f"  Detections: {detection_count}/{len(frames)} frames")
+        return detection_count
+
+    except anthropic.RateLimitError:
+        print(f"Rate limited on {clip_name}, waiting 60s...")
+        time.sleep(60)
+        return process_clip(client, clip_name, frames, output_dir)
+    except Exception as e:
+        print(f"Error processing {clip_name}: {e}")
+        return 0
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Label volleyball images using Claude Vision")
+    parser = argparse.ArgumentParser(description="Label volleyball clips using Claude Vision")
     parser.add_argument("pattern", help="Glob pattern for images (e.g., './screenshots/*.png')")
     parser.add_argument("--output", "-o", type=Path, required=True, help="Output directory for YOLO labels")
     args = parser.parse_args()
@@ -170,23 +178,19 @@ def main():
         print(f"No images found matching pattern: {args.pattern}")
         sys.exit(1)
 
+    clips = group_images_by_clip(all_images)
     processed_log = load_processed_log(output_dir)
-    images_to_process = [p for p in all_images if p.name not in processed_log]
+    clips_to_process = {k: v for k, v in clips.items() if k not in processed_log}
 
-    print(f"Found {len(all_images)} images matching pattern, {len(images_to_process)} remaining to process")
+    print(f"Found {len(clips)} clips, {len(clips_to_process)} remaining to process")
 
-    total_processed = 0
     total_detections = 0
-
-    for i in range(0, len(images_to_process), BATCH_SIZE):
-        batch = images_to_process[i : i + BATCH_SIZE]
-        processed, detections = process_batch(client, batch, output_dir)
-        append_to_processed_log(output_dir, processed)
-        total_processed += len(processed)
+    for clip_name, frames in clips_to_process.items():
+        detections = process_clip(client, clip_name, frames, output_dir)
+        append_to_processed_log(output_dir, clip_name)
         total_detections += detections
-        print(f"Processed {total_processed}/{len(images_to_process)} images, {total_detections} detections so far")
 
-    print(f"\nDone! Processed {total_processed} images with {total_detections} total detections")
+    print(f"\nDone! Processed {len(clips_to_process)} clips with {total_detections} total detections")
 
 
 if __name__ == "__main__":
