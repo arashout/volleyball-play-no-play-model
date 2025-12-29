@@ -1,6 +1,17 @@
 # Commands
 
 ```bash
+# Extract training clips from rally CSV
+python scripts/extract_training_clips.py \
+  --video path/to/game.mp4 \
+  --csv path/to/rallies.csv \
+  --output data/train
+
+python scripts/extract_training_clips.py \
+  --video /Users/arashoutadi/volleyball-videos/balltime_versions/Sun_June_22,_2025_Vollocity_vs_Setters_of_Catan_Game_2_Set_2.mp4 \
+  --csv /Users/arashoutadi/volleyball-videos/balltime_versions/Sun_June_22,_2025_Vollocity_vs_Setters_of_Catan_Game_2_Set_2.csv \
+  --output data/train/
+
 # Train
 MODEL_PATH=output/best_model DATA_DIR=game_state_incrediballs uv run python train.py
 
