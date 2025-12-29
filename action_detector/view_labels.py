@@ -48,7 +48,7 @@ def draw_labels(image, labels: list[tuple[ActionType, float, float, float, float
 def main():
     parser = argparse.ArgumentParser(description="View images with YOLO labels")
     parser.add_argument("pattern", help="Glob pattern for images")
-    parser.add_argument("--labels", "-l", type=Path, required=True, help="Directory containing YOLO label files")
+    parser.add_argument("--labels", "-l", type=Path, default=Path("labels/pose_guided"))
     args = parser.parse_args()
 
     images = sorted(glob.glob(args.pattern))

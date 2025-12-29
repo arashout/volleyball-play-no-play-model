@@ -11,7 +11,8 @@
       "Bash(python -m pyright:*)",
       "Bash(find:*)",
       "Bash(head:*)",
-      "Bash(python export_pose_onnx.py:*)"
+      "Bash(python export_pose_onnx.py:*)",
+      "Skill(superpowers:writing-skills)"
     ]
   }
 }

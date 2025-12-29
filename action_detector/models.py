@@ -25,3 +25,18 @@ class FrameDetection(BaseModel):
 
 class ClipAnalysis(BaseModel):
     frames: list[FrameDetection | None]
+
+
+class PlayerAction(BaseModel):
+    player_index: int
+    action: ActionType
+    reasoning: str
+
+
+class PoseGuidedFrameDetection(BaseModel):
+    frame_index: int
+    detection: PlayerAction | None
+
+
+class PoseGuidedClipAnalysis(BaseModel):
+    frames: list[PoseGuidedFrameDetection]

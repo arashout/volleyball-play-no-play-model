@@ -18,3 +18,4 @@ __MACOSX
 *.csv
 screenshots/
 labels/
+*.pt

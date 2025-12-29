@@ -11,8 +11,9 @@ from typing import cast
 
 import anthropic
 
-from .models import ClipAnalysis
-from .prompts import SYSTEM_PROMPT
+from pose_detector import PoseDetector, FramePoses
+from .models import PoseGuidedClipAnalysis, ActionType
+from .prompts import POSE_GUIDED_PROMPT
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
@@ -69,14 +70,39 @@ def group_images_by_clip(images: list[Path]) -> dict[str, list[Path]]:
     return dict(clips)
 
 
-def analyze_clip(client: anthropic.Anthropic, clip_name: str, frames: list[Path]) -> ClipAnalysis:
+def format_player_boxes(frame_poses: FramePoses) -> str:
+    if not frame_poses.poses:
+        return "No players detected"
+
+    lines = []
+    for i, pose in enumerate(frame_poses.poses):
+        x_center = (pose.x1 + pose.x2) / 2 / frame_poses.width
+        y_center = (pose.y1 + pose.y2) / 2 / frame_poses.height
+        width = (pose.x2 - pose.x1) / frame_poses.width
+        height = (pose.y2 - pose.y1) / frame_poses.height
+        lines.append(
+            f"  Player {i}: center=({x_center:.2f}, {y_center:.2f}), "
+            f"size=({width:.2f}, {height:.2f}), conf={pose.confidence:.2f}"
+        )
+    return "\n".join(lines)
+
+
+def analyze_clip_with_poses(
+    client: anthropic.Anthropic,
+    clip_name: str,
+    frames: list[Path],
+    pose_results: list[FramePoses],
+) -> PoseGuidedClipAnalysis:
     content = []
-    for i, frame_path in enumerate(frames):
+
+    for i, (frame_path, frame_poses) in enumerate(zip(frames, pose_results)):
         media_type = get_image_media_type(frame_path)
         image_data = encode_image(frame_path)
+
+        player_info = format_player_boxes(frame_poses)
         content.append({
             "type": "text",
-            "text": f"Frame {i}:",
+            "text": f"Frame {i}:\nDetected players:\n{player_info}",
         })
         content.append({
             "type": "image",
@@ -89,7 +115,7 @@ def analyze_clip(client: anthropic.Anthropic, clip_name: str, frames: list[Path]
 
     content.append({
         "type": "text",
-        "text": f"Clip: {clip_name}\n\nAnalyze these {len(frames)} frames and return detections for frames with ball contact.",
+        "text": f"Clip: {clip_name}\n\nAnalyze these {len(frames)} frames and identify which player (by index) is performing an action, if any.",
     })
 
     messages = cast(list, [{"role": "user", "content": content}])
@@ -97,13 +123,13 @@ def analyze_clip(client: anthropic.Anthropic, clip_name: str, frames: list[Path]
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=2048,
-        system=SYSTEM_PROMPT,
+        system=POSE_GUIDED_PROMPT,
         messages=messages,
         tools=[
             {
                 "name": "report_detections",
-                "description": "Report the detected volleyball actions across the clip frames",
-                "input_schema": ClipAnalysis.model_json_schema(),
+                "description": "Report the detected volleyball actions with player indices",
+                "input_schema": PoseGuidedClipAnalysis.model_json_schema(),
             }
         ],
         tool_choice={"type": "tool", "name": "report_detections"},
@@ -111,33 +137,56 @@ def analyze_clip(client: anthropic.Anthropic, clip_name: str, frames: list[Path]
 
     for block in message.content:
         if block.type == "tool_use" and block.name == "report_detections":
-            return ClipAnalysis.model_validate(block.input)
+            return PoseGuidedClipAnalysis.model_validate(block.input)
 
-    return ClipAnalysis(frames=[])
+    return PoseGuidedClipAnalysis(frames=[])
 
 
 def process_clip(
     client: anthropic.Anthropic,
+    detector: PoseDetector,
     clip_name: str,
     frames: list[Path],
     output_dir: Path,
     skip_empty: bool = False,
 ) -> int:
     try:
-        result = analyze_clip(client, clip_name, frames)
+        pose_results = [detector.detect_file(str(f)) for f in frames]
+        result = analyze_clip_with_poses(client, clip_name, frames, pose_results)
+
         print(f"\n=== {clip_name} ({len(frames)} frames) ===")
 
         detection_count = 0
-        for i, frame_path in enumerate(frames):
-            detection = result.frames[i] if i < len(result.frames) else None
+        for frame_result in result.frames:
+            frame_idx = frame_result.frame_index
+            if frame_idx >= len(frames):
+                continue
+
+            frame_path = frames[frame_idx]
+            frame_poses = pose_results[frame_idx]
             label_path = output_dir / f"{frame_path.stem}.txt"
 
-            if detection:
-                label_path.write_text(detection.to_yolo_line())
-                reasoning_path = output_dir / f"{frame_path.stem}_reasoning.txt"
-                reasoning_path.write_text(f"{detection.action.name}: {detection.reasoning}")
-                print(f"  Frame {i}: {detection.action.name}")
-                detection_count += 1
+            if frame_result.detection:
+                det = frame_result.detection
+                player_idx = det.player_index
+
+                if player_idx < len(frame_poses.poses):
+                    pose = frame_poses.poses[player_idx]
+                    x_center = (pose.x1 + pose.x2) / 2 / frame_poses.width
+                    y_center = (pose.y1 + pose.y2) / 2 / frame_poses.height
+                    width = (pose.x2 - pose.x1) / frame_poses.width
+                    height = (pose.y2 - pose.y1) / frame_poses.height
+
+                    yolo_line = f"{det.action.value} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}"
+                    label_path.write_text(yolo_line)
+
+                    reasoning_path = output_dir / f"{frame_path.stem}_reasoning.txt"
+                    reasoning_path.write_text(f"{ActionType(det.action).name}: {det.reasoning}")
+
+                    print(f"  Frame {frame_idx}: {ActionType(det.action).name} (player {player_idx})")
+                    detection_count += 1
+                elif not skip_empty:
+                    label_path.write_text("")
             elif not skip_empty:
                 label_path.write_text("")
 
@@ -147,16 +196,19 @@ def process_clip(
     except anthropic.RateLimitError:
         print(f"Rate limited on {clip_name}, waiting 60s...")
         time.sleep(60)
-        return process_clip(client, clip_name, frames, output_dir, skip_empty)
+        return process_clip(client, detector, clip_name, frames, output_dir, skip_empty)
     except Exception as e:
         print(f"Error processing {clip_name}: {e}")
+        import traceback
+        traceback.print_exc()
         return 0
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Label volleyball clips using Claude Vision")
-    parser.add_argument("pattern", help="Glob pattern for images (e.g., './screenshots/*.png')")
-    parser.add_argument("--output", "-o", type=Path, default=Path("labels/vision"))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("pattern", help="Glob pattern for images")
+    parser.add_argument("--output", "-o", type=Path, default=Path("labels/pose_guided"))
+    parser.add_argument("--pose-model", default="output/yolo11n-pose.onnx")
     parser.add_argument("--skip-empty", action="store_true", help="Don't create empty label files")
     args = parser.parse_args()
 
@@ -169,6 +221,7 @@ def main():
         sys.exit(1)
 
     client = anthropic.Anthropic(api_key=api_key)
+    detector = PoseDetector(args.pose_model)
 
     all_images = [
         Path(p) for p in glob.glob(args.pattern)
@@ -188,7 +241,7 @@ def main():
 
     total_detections = 0
     for clip_name, frames in clips_to_process.items():
-        detections = process_clip(client, clip_name, frames, output_dir, args.skip_empty)
+        detections = process_clip(client, detector, clip_name, frames, output_dir, args.skip_empty)
         append_to_processed_log(output_dir, clip_name)
         total_detections += detections
 
