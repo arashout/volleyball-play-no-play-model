@@ -1,6 +1,7 @@
 import os
 import av
 import torch
+import random
 import numpy as np
 from pathlib import Path
 from torch.utils.data import Dataset
@@ -10,8 +11,11 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
+from av.container.input import InputContainer
 from sklearn.metrics import accuracy_score, f1_score
-from utils import NUM_FRAMES, read_video_pyav, sample_frame_indices
+from utils import NUM_FRAMES, read_video_pyav
+from augmentations import augment_video, get_augmentation_pipeline, sample_temporal_jitter
+from typing import cast, Callable
 
 MODEL_NAME = "MCG-NJU/videomae-small-finetuned-kinetics"
 IMAGE_SIZE = 224
@@ -20,8 +24,17 @@ LABEL2ID = {"no-play": 0, "play": 1}
 
 
 class VideoDataset(Dataset):
-    def __init__(self, root_dir, processor, split="train"):
+    def __init__(
+        self,
+        root_dir,
+        processor,
+        split="train",
+        transform: Callable | None = None,
+        sampler: Callable[[int, int], list[int]] | None = None,
+    ):
         self.processor = processor
+        self.transform = transform
+        self.sampler = sampler
         self.samples = []
 
         root_path = Path(root_dir) / split
@@ -40,15 +53,26 @@ class VideoDataset(Dataset):
     def __getitem__(self, idx):
         video_path, label = self.samples[idx]
 
-        container = av.open(video_path)
+        container: InputContainer = cast(InputContainer, av.open(video_path))
         total_frames = container.streams.video[0].frames
         if total_frames == 0:
             total_frames = sum(1 for _ in container.decode(video=0))
             container.seek(0)
 
-        indices = sample_frame_indices(NUM_FRAMES, 1, total_frames)
+        if self.sampler:
+            indices = self.sampler(NUM_FRAMES, total_frames)
+        else:
+            if total_frames <= NUM_FRAMES:
+                start_idx = 0
+            else:
+                start_idx = random.randint(0, total_frames - NUM_FRAMES)
+            indices = list(range(start_idx, start_idx + NUM_FRAMES))
+
         video = read_video_pyav(container, indices)
         container.close()
+
+        if self.transform:
+            video = self.transform(video)
 
         inputs = self.processor(list(video), return_tensors="pt")
         inputs = {k: v.squeeze(0) for k, v in inputs.items()}
@@ -80,14 +104,21 @@ def main():
     print("Using", model_path, data_dir, output_dir)
     processor = VideoMAEImageProcessor.from_pretrained(model_path)
     model = VideoMAEForVideoClassification.from_pretrained(
-        MODEL_NAME,
+        model_path,
         num_labels=2,
         id2label=ID2LABEL,
         label2id=LABEL2ID,
         ignore_mismatched_sizes=True,
     )
 
-    train_dataset = VideoDataset(data_dir, processor, split="train")
+    aug_pipeline = get_augmentation_pipeline()
+    train_dataset = VideoDataset(
+        data_dir,
+        processor,
+        split="train",
+        transform=lambda v: augment_video(v, aug_pipeline),
+        sampler=sample_temporal_jitter,
+    )
     val_dataset = VideoDataset(data_dir, processor, split="val")
 
     training_args = TrainingArguments(

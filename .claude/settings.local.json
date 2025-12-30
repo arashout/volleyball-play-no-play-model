@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(agent-deck:agent-deck)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(cat:*)",
+      "Bash(sips:*)",
+      "Skill(superpowers:brainstorming)",
+      "Bash(python -m ruff:*)",
+      "Bash(python -m pyright:*)",
+      "Bash(find:*)",
+      "Bash(head:*)",
+      "Bash(python export_pose_onnx.py:*)",
+      "Skill(superpowers:writing-skills)",
+      "Bash(wc:*)",
+      "Bash(du:*)",
+      "Skill(python-lint-check)"
+    ]
+  }
+}

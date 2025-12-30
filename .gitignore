@@ -12,6 +12,10 @@ uv.lock
 .DS_Store
 __MACOSX
 
+# Data
 *.mp4
 *.zip
 *.csv
+screenshots/
+labels/
+*.pt

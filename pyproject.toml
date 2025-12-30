@@ -15,4 +15,8 @@ dependencies = [
     "onnxruntime>=1.23.2",
     "opencv-python>=4.11.0.86",
     "onnxscript>=0.5.6",
+    "anthropic>=0.40.0",
+    "pydantic>=2.0.0",
+    "ultralytics>=8.3.0",
+    "scikit-image>=0.25.2",
 ]
