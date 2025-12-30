@@ -14,7 +14,8 @@
       "Bash(python export_pose_onnx.py:*)",
       "Skill(superpowers:writing-skills)",
       "Bash(wc:*)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Skill(python-lint-check)"
     ]
   }
 }
