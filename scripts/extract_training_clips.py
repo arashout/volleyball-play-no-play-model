@@ -76,7 +76,7 @@ def main():
     video_name = video_path.stem
 
     play_dir = output_dir / "play"
-    no_play_dir = output_dir / "no_play"
+    no_play_dir = output_dir / "no-play"
     play_dir.mkdir(parents=True, exist_ok=True)
     no_play_dir.mkdir(parents=True, exist_ok=True)
 
@@ -102,7 +102,7 @@ def main():
             gap_duration = gap_end - gap_start
             if gap_duration > 0:
                 no_play_count += 1
-                output_path = no_play_dir / f"no_play_{no_play_count:04d}_{video_name}.mp4"
+                output_path = no_play_dir / f"no-play_{no_play_count:04d}_{video_name}.mp4"
                 print(f"Extracting no_play clip {no_play_count}: {format_duration(gap_start)} - {format_duration(gap_end)}")
                 if not extract_clip(video_path, gap_start, gap_duration, output_path, args.size):
                     print("  Failed to extract clip")

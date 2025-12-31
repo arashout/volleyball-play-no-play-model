@@ -19,3 +19,6 @@ __MACOSX
 screenshots/
 labels/
 *.pt
+best_model/
+
+processed_videos.txt
