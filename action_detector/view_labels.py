@@ -17,7 +17,9 @@ COLORS = {
 }
 
 
-def load_yolo_labels(label_path: Path) -> list[tuple[ActionType, float, float, float, float]]:
+def load_yolo_labels(
+    label_path: Path,
+) -> list[tuple[ActionType, float, float, float, float]]:
     if not label_path.exists():
         return []
     labels = []
@@ -41,7 +43,9 @@ def draw_labels(image, labels: list[tuple[ActionType, float, float, float, float
         color = COLORS.get(action, (255, 255, 255))
         cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
         label_text = action.name
-        cv2.putText(image, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        cv2.putText(
+            image, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2
+        )
     return image
 
 
@@ -72,7 +76,9 @@ def main():
         labels = load_yolo_labels(label_path)
         image = draw_labels(image, labels)
 
-        window_title = f"{image_path.name} ({idx + 1}/{len(images)}) - {len(labels)} detections"
+        window_title = (
+            f"{image_path.name} ({idx + 1}/{len(images)}) - {len(labels)} detections"
+        )
         cv2.imshow(window_title, image)
 
         key = cv2.waitKey(0) & 0xFF

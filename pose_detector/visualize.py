@@ -82,7 +82,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("pattern", help="Glob pattern for images")
     parser.add_argument("--model", default="output/yolo11n-pose.onnx")
-    parser.add_argument("--output", "-o", type=Path, help="Output dir for annotated images")
+    parser.add_argument(
+        "--output", "-o", type=Path, help="Output dir for annotated images"
+    )
     args = parser.parse_args()
 
     detector = PoseDetector(args.model)
@@ -102,7 +104,9 @@ def main():
             annotated = draw_poses(image, frame_poses)
 
             cv2.imshow("Pose Detection", annotated)
-            print(f"[{i+1}/{len(results)}] {frame_poses.frame_path}: {len(frame_poses.poses)} poses")
+            print(
+                f"[{i + 1}/{len(results)}] {frame_poses.frame_path}: {len(frame_poses.poses)} poses"
+            )
 
             key = cv2.waitKey(0) & 0xFF
             if key == ord("q"):

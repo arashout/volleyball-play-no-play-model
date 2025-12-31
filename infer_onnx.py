@@ -9,6 +9,7 @@ MEAN = np.array([0.485, 0.456, 0.406])
 STD = np.array([0.229, 0.224, 0.225])
 LABELS = ["no_play", "play"]
 
+
 def preprocess_frame(frame: np.ndarray) -> np.ndarray:
     img = Image.fromarray(frame)
     w, h = img.size
@@ -23,6 +24,7 @@ def preprocess_frame(frame: np.ndarray) -> np.ndarray:
     arr = (arr - MEAN) / STD
     return arr.transpose(2, 0, 1)
 
+
 def run_inference(session, frames):
     processed = np.stack([preprocess_frame(f) for f in frames])
     pixel_values = processed[np.newaxis, ...].astype(np.float32)
@@ -31,6 +33,7 @@ def run_inference(session, frames):
     pred_idx = int(np.argmax(logits, axis=-1)[0])
     confidence = float(np.exp(logits[0, pred_idx]) / np.exp(logits[0]).sum())
     return LABELS[pred_idx], confidence
+
 
 def play_video_with_labels(model_path: str, video_path: str):
     session = ort.InferenceSession(model_path)
@@ -41,7 +44,6 @@ def play_video_with_labels(model_path: str, video_path: str):
     frame_buffer = []
     current_label = "..."
     current_conf = 0.0
-    frame_count = 0
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -55,7 +57,7 @@ def play_video_with_labels(model_path: str, video_path: str):
             indices = np.linspace(0, len(frame_buffer) - 1, NUM_FRAMES, dtype=int)
             sampled = [frame_buffer[i] for i in indices]
             current_label, current_conf = run_inference(session, sampled)
-            frame_buffer = frame_buffer[NUM_FRAMES // 2:]
+            frame_buffer = frame_buffer[NUM_FRAMES // 2 :]
 
         color = (0, 255, 0) if current_label == "play" else (0, 0, 255)
         text = f"{current_label} ({current_conf:.1%})"
@@ -63,12 +65,12 @@ def play_video_with_labels(model_path: str, video_path: str):
 
         cv2.imshow("Volleyball Play Detection", frame)
         key = cv2.waitKey(delay)
-        if key == ord('q') or key == 27:
+        if key == ord("q") or key == 27:
             break
-        frame_count += 1
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -1,73 +1,24 @@
 import argparse
-import base64
 import glob
 import os
-import re
 import sys
 import time
-from collections import defaultdict
 from pathlib import Path
 from typing import cast
 
 import anthropic
 
 from pose_detector import PoseDetector, FramePoses
+from .common import (
+    IMAGE_EXTENSIONS,
+    append_to_processed_log,
+    encode_image,
+    get_image_media_type,
+    group_images_by_clip,
+    load_processed_log,
+)
 from .models import PoseGuidedClipAnalysis, ActionType
 from .prompts import POSE_GUIDED_PROMPT
-
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-
-
-def load_processed_log(output_dir: Path) -> set[str]:
-    log_path = output_dir / "processed_log.txt"
-    if not log_path.exists():
-        return set()
-    return set(log_path.read_text().strip().split("\n"))
-
-
-def append_to_processed_log(output_dir: Path, clip_name: str):
-    log_path = output_dir / "processed_log.txt"
-    with open(log_path, "a") as f:
-        f.write(f"{clip_name}\n")
-
-
-def get_image_media_type(path: Path) -> str:
-    ext = path.suffix.lower()
-    if ext in {".jpg", ".jpeg"}:
-        return "image/jpeg"
-    elif ext == ".png":
-        return "image/png"
-    elif ext == ".webp":
-        return "image/webp"
-    return "image/jpeg"
-
-
-def encode_image(path: Path) -> str:
-    return base64.standard_b64encode(path.read_bytes()).decode("utf-8")
-
-
-def extract_clip_name(filename: str) -> str:
-    match = re.match(r"(.+)_f\d+", filename)
-    if match:
-        return match.group(1)
-    return filename
-
-
-def extract_frame_number(filename: str) -> int:
-    match = re.search(r"_f(\d+)", filename)
-    if match:
-        return int(match.group(1))
-    return 0
-
-
-def group_images_by_clip(images: list[Path]) -> dict[str, list[Path]]:
-    clips = defaultdict(list)
-    for img in images:
-        clip_name = extract_clip_name(img.stem)
-        clips[clip_name].append(img)
-    for clip_name in clips:
-        clips[clip_name].sort(key=lambda p: extract_frame_number(p.stem))
-    return dict(clips)
 
 
 def format_player_boxes(frame_poses: FramePoses) -> str:
@@ -100,23 +51,29 @@ def analyze_clip_with_poses(
         image_data = encode_image(frame_path)
 
         player_info = format_player_boxes(frame_poses)
-        content.append({
-            "type": "text",
-            "text": f"Frame {i}:\nDetected players:\n{player_info}",
-        })
-        content.append({
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": media_type,
-                "data": image_data,
-            },
-        })
+        content.append(
+            {
+                "type": "text",
+                "text": f"Frame {i}:\nDetected players:\n{player_info}",
+            }
+        )
+        content.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": image_data,
+                },
+            }
+        )
 
-    content.append({
-        "type": "text",
-        "text": f"Clip: {clip_name}\n\nAnalyze these {len(frames)} frames and identify which player (by index) is performing an action, if any.",
-    })
+    content.append(
+        {
+            "type": "text",
+            "text": f"Clip: {clip_name}\n\nAnalyze these {len(frames)} frames and identify which player (by index) is performing an action, if any.",
+        }
+    )
 
     messages = cast(list, [{"role": "user", "content": content}])
 
@@ -181,9 +138,13 @@ def process_clip(
                     label_path.write_text(yolo_line)
 
                     reasoning_path = output_dir / f"{frame_path.stem}_reasoning.txt"
-                    reasoning_path.write_text(f"{ActionType(det.action).name}: {det.reasoning}")
+                    reasoning_path.write_text(
+                        f"{ActionType(det.action).name}: {det.reasoning}"
+                    )
 
-                    print(f"  Frame {frame_idx}: {ActionType(det.action).name} (player {player_idx})")
+                    print(
+                        f"  Frame {frame_idx}: {ActionType(det.action).name} (player {player_idx})"
+                    )
                     detection_count += 1
                 elif not skip_empty:
                     label_path.write_text("")
@@ -200,6 +161,7 @@ def process_clip(
     except Exception as e:
         print(f"Error processing {clip_name}: {e}")
         import traceback
+
         traceback.print_exc()
         return 0
 
@@ -209,7 +171,9 @@ def main():
     parser.add_argument("pattern", help="Glob pattern for images")
     parser.add_argument("--output", "-o", type=Path, default=Path("labels/pose_guided"))
     parser.add_argument("--pose-model", default="output/yolo11n-pose.onnx")
-    parser.add_argument("--skip-empty", action="store_true", help="Don't create empty label files")
+    parser.add_argument(
+        "--skip-empty", action="store_true", help="Don't create empty label files"
+    )
     args = parser.parse_args()
 
     output_dir = args.output
@@ -224,7 +188,8 @@ def main():
     detector = PoseDetector(args.pose_model)
 
     all_images = [
-        Path(p) for p in glob.glob(args.pattern)
+        Path(p)
+        for p in glob.glob(args.pattern)
         if Path(p).is_file() and Path(p).suffix.lower() in IMAGE_EXTENSIONS
     ]
     all_images.sort()
@@ -241,11 +206,15 @@ def main():
 
     total_detections = 0
     for clip_name, frames in clips_to_process.items():
-        detections = process_clip(client, detector, clip_name, frames, output_dir, args.skip_empty)
+        detections = process_clip(
+            client, detector, clip_name, frames, output_dir, args.skip_empty
+        )
         append_to_processed_log(output_dir, clip_name)
         total_detections += detections
 
-    print(f"\nDone! Processed {len(clips_to_process)} clips with {total_detections} total detections")
+    print(
+        f"\nDone! Processed {len(clips_to_process)} clips with {total_detections} total detections"
+    )
 
 
 if __name__ == "__main__":

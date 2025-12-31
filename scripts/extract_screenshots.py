@@ -4,8 +4,9 @@ import csv
 import sys
 from pathlib import Path
 
+
 def time_to_seconds(time_str: str) -> float:
-    parts = time_str.split(':')
+    parts = time_str.split(":")
     if len(parts) == 3:
         h, m, s = parts
         return int(h) * 3600 + int(m) * 60 + float(s)
@@ -14,13 +15,17 @@ def time_to_seconds(time_str: str) -> float:
         return int(m) * 60 + float(s)
     return float(time_str)
 
+
 def seconds_to_time(seconds: float) -> str:
     h = int(seconds // 3600)
     m = int((seconds % 3600) // 60)
     s = seconds % 60
     return f"{h:02d}:{m:02d}:{s:06.3f}"
 
-def extract_screenshots(video_path: str, csv_path: str, output_dir: str = "screenshots", fps: int = 15):
+
+def extract_screenshots(
+    video_path: str, csv_path: str, output_dir: str = "screenshots", fps: int = 15
+):
     video = Path(video_path)
     if not video.exists():
         print(f"Video not found: {video_path}")
@@ -32,8 +37,8 @@ def extract_screenshots(video_path: str, csv_path: str, output_dir: str = "scree
     with open(csv_path) as f:
         reader = csv.DictReader(f)
         for row in reader:
-            time = row['time']
-            action = row['action'].replace(' ', '_')
+            time = row["time"]
+            action = row["action"].replace(" ", "_")
             start_sec = time_to_seconds(time)
 
             for i in range(fps):
@@ -43,16 +48,25 @@ def extract_screenshots(video_path: str, csv_path: str, output_dir: str = "scree
                 output_path = out / filename
 
                 cmd = [
-                    'ffmpeg', '-y', '-ss', timestamp,
-                    '-i', str(video),
-                    '-frames:v', '1', '-q:v', '2',
-                    '-vf', 'scale=640:640:force_original_aspect_ratio=decrease,pad=640:640:(ow-iw)/2:(oh-ih)/2:black',
-                    str(output_path)
+                    "ffmpeg",
+                    "-y",
+                    "-ss",
+                    timestamp,
+                    "-i",
+                    str(video),
+                    "-frames:v",
+                    "1",
+                    "-q:v",
+                    "2",
+                    "-vf",
+                    "scale=640:640:force_original_aspect_ratio=decrease,pad=640:640:(ow-iw)/2:(oh-ih)/2:black",
+                    str(output_path),
                 ]
                 subprocess.run(cmd, capture_output=True)
             print(f"Extracted {fps} frames for: {time} {action}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     if len(sys.argv) < 3:
         print(f"Usage: {sys.argv[0]} <video_file> <csv_file> [output_dir] [fps]")
         sys.exit(1)

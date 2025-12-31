@@ -4,7 +4,9 @@ import torch
 from torchvision.transforms import v2
 
 
-def sample_temporal_jitter(num_frames: int, total_frames: int, max_stride: int = 2) -> list[int]:
+def sample_temporal_jitter(
+    num_frames: int, total_frames: int, max_stride: int = 2
+) -> list[int]:
     stride = random.randint(1, max_stride)
     span = num_frames * stride
     if span > total_frames:
@@ -16,14 +18,21 @@ def sample_temporal_jitter(num_frames: int, total_frames: int, max_stride: int =
 
 
 def get_augmentation_pipeline(p=0.5):
-    return v2.Compose([
-        v2.RandomHorizontalFlip(p=p),
-        v2.RandomApply([v2.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1)], p=p),
-        v2.RandomApply([v2.GaussianBlur(kernel_size=5, sigma=(0.5, 2.0))], p=p),
-        v2.RandomApply([v2.RandomResizedCrop(size=(224, 224), scale=(0.7, 1.0))], p=p),
-        v2.RandomApply([v2.RandomAffine(degrees=0, translate=(0.1, 0.1))], p=p),
-        v2.RandomApply([v2.RandomAffine(degrees=0, shear=(-10, 10, -10, 10))], p=p),
-    ])
+    return v2.Compose(
+        [
+            v2.RandomHorizontalFlip(p=p),
+            v2.RandomApply(
+                [v2.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1)],
+                p=p,
+            ),
+            v2.RandomApply([v2.GaussianBlur(kernel_size=5, sigma=(0.5, 2.0))], p=p),
+            v2.RandomApply(
+                [v2.RandomResizedCrop(size=(224, 224), scale=(0.7, 1.0))], p=p
+            ),
+            v2.RandomApply([v2.RandomAffine(degrees=0, translate=(0.1, 0.1))], p=p),
+            v2.RandomApply([v2.RandomAffine(degrees=0, shear=(-10, 10, -10, 10))], p=p),
+        ]
+    )
 
 
 def augment_video(video: np.ndarray, pipeline=None) -> np.ndarray:
@@ -45,7 +54,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--video", required=True, help="Input video path")
     parser.add_argument("--output", default="augmented_preview.mp4", help="Output path")
-    parser.add_argument("--iterations", type=int, default=5, help="Number of augmented versions to generate")
+    parser.add_argument(
+        "--iterations",
+        type=int,
+        default=5,
+        help="Number of augmented versions to generate",
+    )
     args = parser.parse_args()
 
     container = av.open(args.video)
@@ -65,23 +79,25 @@ if __name__ == "__main__":
     sample_aug = augment_video(video, pipeline)
     height, width = sample_aug.shape[1], sample_aug.shape[2]
 
-    output = av.open(str(output_path), mode='w')
-    stream = output.add_stream('libx264', rate=fps)
+    output = av.open(str(output_path), mode="w")
+    stream = output.add_stream("libx264", rate=fps)
     stream.width = width
     stream.height = height
-    stream.pix_fmt = 'yuv420p'
+    stream.pix_fmt = "yuv420p"
 
     for i in range(args.iterations):
         frames_to_write = augment_video(video, pipeline)
 
         for frame_data in frames_to_write:
-            frame = av.VideoFrame.from_ndarray(frame_data.astype(np.uint8), format='rgb24')
+            frame = av.VideoFrame.from_ndarray(
+                frame_data.astype(np.uint8), format="rgb24"
+            )
             for packet in stream.encode(frame):
                 output.mux(packet)
 
         for _ in range(fps // 2):
             black = np.zeros((height, width, 3), dtype=np.uint8)
-            frame = av.VideoFrame.from_ndarray(black, format='rgb24')
+            frame = av.VideoFrame.from_ndarray(black, format="rgb24")
             for packet in stream.encode(frame):
                 output.mux(packet)
 

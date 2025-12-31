@@ -14,7 +14,11 @@ from transformers import (
 from av.container.input import InputContainer
 from sklearn.metrics import accuracy_score, f1_score
 from utils import NUM_FRAMES, read_video_pyav
-from augmentations import augment_video, get_augmentation_pipeline, sample_temporal_jitter
+from augmentations import (
+    augment_video,
+    get_augmentation_pipeline,
+    sample_temporal_jitter,
+)
 from typing import cast, Callable
 
 MODEL_NAME = "MCG-NJU/videomae-small-finetuned-kinetics"
@@ -97,7 +101,7 @@ def collate_fn(examples):
 
 
 def main():
-    model_path= os.environ.get("MODEL_PATH", MODEL_NAME)
+    model_path = os.environ.get("MODEL_PATH", MODEL_NAME)
     data_dir = os.environ.get("DATA_DIR", "./data")
     output_dir = os.environ.get("OUTPUT_DIR", "./output")
 

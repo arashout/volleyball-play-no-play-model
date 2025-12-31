@@ -15,7 +15,17 @@
       "Skill(superpowers:writing-skills)",
       "Bash(wc:*)",
       "Bash(du:*)",
-      "Skill(python-lint-check)"
+      "Skill(python-lint-check)",
+      "Bash(pip show:*)",
+      "Bash(python scripts/extract_training_clips.py:*)",
+      "Bash(python scripts/extract_noplay_clips.py:*)",
+      "Bash(lsof:*)",
+      "Bash(python scripts/extract_balltime_rallies.py:*)",
+      "Bash(ls:*)",
+      "Bash(python scripts/balltime_crawler.py:*)",
+      "Bash(xargs cat:*)",
+      "Bash(grep:*)",
+      "Bash(./scripts/lint.sh:*)"
     ]
   }
 }

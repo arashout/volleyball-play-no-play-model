@@ -46,7 +46,7 @@ def process_video(model_path: str, video_path: str, output_path: str):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     frame_buffer = []
@@ -67,7 +67,7 @@ def process_video(model_path: str, video_path: str, output_path: str):
             indices = np.linspace(0, len(frame_buffer) - 1, NUM_FRAMES, dtype=int)
             sampled = [frame_buffer[i] for i in indices]
             current_label, current_conf = run_inference(session, sampled)
-            frame_buffer = frame_buffer[NUM_FRAMES // 2:]
+            frame_buffer = frame_buffer[NUM_FRAMES // 2 :]
 
         color = (0, 255, 0) if current_label == "play" else (0, 0, 255)
         text = f"{current_label} ({current_conf:.1%})"
@@ -86,7 +86,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("video_path")
     parser.add_argument("--model-path", default="output/model.onnx")
-    parser.add_argument("--output", "-o", help="Output path (default: input_labeled.mp4)")
+    parser.add_argument(
+        "--output", "-o", help="Output path (default: input_labeled.mp4)"
+    )
     args = parser.parse_args()
 
     if args.output:

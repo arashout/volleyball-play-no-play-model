@@ -37,7 +37,9 @@ def predict(video_path: str, model_path: str):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Predict play/no-play from a volleyball video")
+    parser = argparse.ArgumentParser(
+        description="Predict play/no-play from a volleyball video"
+    )
     parser.add_argument("video_path", help="Path to the video file")
     parser.add_argument(
         "--model-path",

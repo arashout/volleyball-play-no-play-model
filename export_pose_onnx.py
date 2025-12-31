@@ -2,7 +2,9 @@ from pathlib import Path
 from ultralytics import YOLO
 
 
-def export_pose_model(model_path: str = "models/yolo11n-pose.pt", output_dir: str = "output"):
+def export_pose_model(
+    model_path: str = "models/yolo11n-pose.pt", output_dir: str = "output"
+):
     model = YOLO(model_path)
 
     output_path = Path(output_dir)
