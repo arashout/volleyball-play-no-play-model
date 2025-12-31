@@ -1,6 +1,27 @@
 # Commands
 
 ## Extraction
+
+### Balltime Scripts
+
+Requires Chrome with remote debugging:
+```bash
+# Quit Chrome, then start with:
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug
+# Log into balltime.com in that browser
+```
+
+#### List available videos
+```bash
+python scripts/balltime_crawler.py --folder-id <folder-id>
+```
+
+#### Process all available videos (download + extract rallies)
+```bash
+python scripts/balltime_crawler.py --folder-id <folder-id> --process
+```
+
+### Extract Training Clips
 ```bash
 # Extract training clips from rally CSV
 python scripts/extract_training_clips.py \
@@ -48,26 +69,3 @@ MODEL_PATH=output/best_model DATA_DIR=game_state_incrediballs uv run python trai
 - Train it on all data
 - Infer using ONNX
 
-## Balltime Scripts
-
-Requires Chrome with remote debugging:
-```bash
-# Quit Chrome, then start with:
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug
-# Log into balltime.com in that browser
-```
-
-### List available videos
-```bash
-python scripts/balltime_crawler.py --folder-id <folder-id>
-```
-
-### Process all available videos (download + extract rallies)
-```bash
-python scripts/balltime_crawler.py --folder-id <folder-id> --process
-```
-
-### Mark videos as processed without downloading
-```bash
-python scripts/balltime_crawler.py --folder-id <folder-id> --mark-processed <video-id>
-```
