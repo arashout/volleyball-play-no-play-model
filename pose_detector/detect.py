@@ -18,7 +18,9 @@ class PoseDetector:
         self.input_shape = self.session.get_inputs()[0].shape
         self.img_size = self.input_shape[2]
 
-    def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, float, tuple[int, int]]:
+    def preprocess(
+        self, image: np.ndarray
+    ) -> tuple[np.ndarray, float, tuple[int, int]]:
         h, w = image.shape[:2]
         scale = self.img_size / max(h, w)
         new_w, new_h = int(w * scale), int(h * scale)
@@ -96,9 +98,7 @@ class PoseDetector:
         while detections:
             best = detections.pop(0)
             keep.append(best)
-            detections = [
-                d for d in detections if self._iou(best, d) < iou_threshold
-            ]
+            detections = [d for d in detections if self._iou(best, d) < iou_threshold]
         return keep
 
     def _iou(self, a: PoseDetection, b: PoseDetection) -> float:

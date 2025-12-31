@@ -13,10 +13,10 @@ def normalize_video(video):
     """
     # Convert to float and scale to [0, 1]
     video = video.astype(np.float32) / 255.0
-    
+
     # Normalize using ImageNet mean and std
     video = (video - IMAGENET_MEAN) / IMAGENET_STD
-    
+
     return video
 
 
