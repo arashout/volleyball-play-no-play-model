@@ -58,6 +58,9 @@ class VideoDataset(Dataset):
         video_path, label = self.samples[idx]
 
         container: InputContainer = cast(InputContainer, av.open(video_path))
+        if not container.streams.video:
+            container.close()
+            raise ValueError(f"No video stream in {video_path}")
         total_frames = container.streams.video[0].frames
         if total_frames == 0:
             total_frames = sum(1 for _ in container.decode(video=0))
