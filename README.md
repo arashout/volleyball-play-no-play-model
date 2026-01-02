@@ -9,6 +9,9 @@ Requires Chrome with remote debugging:
 # Quit Chrome, then start with:
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug
 # Log into balltime.com in that browser
+# Go to chrome://settings/downloads and:
+#   - Turn OFF "Ask where to save each file before downloading"
+#   - Set location to /Users/arashoutadi/volleyball-videos/balltime_versions/
 ```
 
 #### List available videos
