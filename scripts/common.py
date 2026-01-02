@@ -41,7 +41,7 @@ def extract_clip(
         "-t",
         str(duration),
         "-vf",
-        f"scale={size}:{size}:force_original_aspect_ratio=increase,crop={size}:{size}",
+        f"scale={size}:{size}:force_original_aspect_ratio=decrease,pad={size}:{size}:(ow-iw)/2:(oh-ih)/2:black",
         "-c:v",
         "libx264",
         "-an",
