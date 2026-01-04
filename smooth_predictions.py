@@ -111,10 +111,10 @@ def enforce_min_duration(
 
 
 def labels_to_segments(
-    labels: np.ndarray, timestamps: np.ndarray
+    labels: np.ndarray, timestamps: np.ndarray, confidence: np.ndarray
 ) -> List[Dict]:
     """
-    Convert binary label array back to segment list.
+    Convert binary label array back to segment list with average confidence.
     """
     if len(labels) == 0:
         return []
@@ -124,17 +124,27 @@ def labels_to_segments(
 
     for i in range(1, len(labels)):
         if labels[i] != labels[i - 1]:
+            label = "play" if labels[start_idx] == 1 else "no-play"
+            seg_conf = confidence[start_idx:i]
+            if label == "no-play":
+                seg_conf = 1 - seg_conf
             segments.append({
                 "startTime": round(float(timestamps[start_idx]), 3),
                 "endTime": round(float(timestamps[i]), 3),
-                "label": "play" if labels[start_idx] == 1 else "no-play"
+                "label": label,
+                "confidence": round(float(np.mean(seg_conf)), 4)
             })
             start_idx = i
 
+    label = "play" if labels[start_idx] == 1 else "no-play"
+    seg_conf = confidence[start_idx:]
+    if label == "no-play":
+        seg_conf = 1 - seg_conf
     segments.append({
         "startTime": round(float(timestamps[start_idx]), 3),
         "endTime": round(float(timestamps[-1]), 3),
-        "label": "play" if labels[start_idx] == 1 else "no-play"
+        "label": label,
+        "confidence": round(float(np.mean(seg_conf)), 4)
     })
 
     return segments
@@ -155,5 +165,46 @@ def smooth_predictions(
     smoothed = apply_smoothing(confidence, smoothing_window, sample_rate)
     labels = apply_hysteresis(smoothed, high_thresh, low_thresh)
     labels = enforce_min_duration(labels, min_segment_duration, sample_rate)
-    segments = labels_to_segments(labels, timestamps)
+    segments = labels_to_segments(labels, timestamps, smoothed)
     return segments
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input", help="Input predictions JSON file")
+    parser.add_argument("-o", "--output", help="Output JSON path (default: input_smoothed.json)")
+    parser.add_argument("--sample-rate", type=float, default=30.0)
+    parser.add_argument("--smoothing-window", type=float, default=4.0)
+    parser.add_argument("--high-thresh", type=float, default=0.6)
+    parser.add_argument("--low-thresh", type=float, default=0.4)
+    parser.add_argument("--min-duration", type=float, default=8.0)
+    args = parser.parse_args()
+
+    with open(args.input) as f:
+        data = json.load(f)
+
+    raw = data["playNoPlayPredictions"]
+    smoothed = smooth_predictions(
+        raw,
+        sample_rate=args.sample_rate,
+        smoothing_window=args.smoothing_window,
+        high_thresh=args.high_thresh,
+        low_thresh=args.low_thresh,
+        min_segment_duration=args.min_duration
+    )
+
+    if args.output:
+        output_path = args.output
+    else:
+        p = Path(args.input)
+        output_path = str(p.parent / f"{p.stem}_smoothed.json")
+
+    with open(output_path, "w") as f:
+        json.dump({"playNoPlayPredictions": smoothed}, f, indent=2)
+
+    print(f"Raw: {len(raw)} -> Smoothed: {len(smoothed)} segments")
+    print(f"Saved to: {output_path}")
