@@ -27,7 +27,9 @@
       "Bash(grep:*)",
       "Bash(./scripts/lint.sh:*)",
       "Skill(superpowers:writing-plans)",
-      "Skill(superpowers:subagent-driven-development)"
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)"
     ]
   }
 }

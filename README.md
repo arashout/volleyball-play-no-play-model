@@ -68,7 +68,7 @@ zip -r data.zip data/
 
 
 ## Train
-MODEL_PATH=output/best_model DATA_DIR=game_state_incrediballs uv run python train.py
+MODEL_PATH=output/best_model uv run python train.py
 
 
 # Pipeline

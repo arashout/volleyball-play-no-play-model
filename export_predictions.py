@@ -1,0 +1,101 @@
+import argparse
+import json
+import cv2
+import numpy as np
+import onnxruntime as ort
+import threading
+import queue
+from pathlib import Path
+from tqdm import tqdm
+from infer_onnx import preprocess_frame, run_inference
+from utils import NUM_FRAMES
+
+
+def frame_reader(cap, frame_queue, stop_event):
+    while not stop_event.is_set():
+        ret, frame = cap.read()
+        if not ret:
+            frame_queue.put(None)
+            break
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_queue.put(frame_rgb)
+
+
+def export_predictions(model_path: str, video_path: str, output_path: str):
+    session = ort.InferenceSession(model_path)
+    cap = cv2.VideoCapture(video_path)
+
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    window_frames = NUM_FRAMES
+    stride_frames = NUM_FRAMES // 2
+    window_duration = window_frames / fps
+
+    predictions = []
+    frame_buffer = []
+    frame_idx = 0
+    window_start_frame = 0
+
+    frame_queue = queue.Queue(maxsize=32)
+    stop_event = threading.Event()
+    reader_thread = threading.Thread(
+        target=frame_reader, args=(cap, frame_queue, stop_event), daemon=True
+    )
+    reader_thread.start()
+
+    pbar = tqdm(total=total_frames, desc="Analyzing")
+
+    while True:
+        frame_rgb = frame_queue.get()
+        if frame_rgb is None:
+            break
+
+        frame_buffer.append(frame_rgb)
+        frame_idx += 1
+
+        if len(frame_buffer) >= NUM_FRAMES:
+            indices = np.linspace(0, len(frame_buffer) - 1, NUM_FRAMES, dtype=int)
+            sampled = [frame_buffer[i] for i in indices]
+            label, confidence = run_inference(session, sampled)
+
+            start_time = window_start_frame / fps
+            end_time = start_time + window_duration
+
+            predictions.append({
+                "startTime": round(start_time, 3),
+                "endTime": round(end_time, 3),
+                "label": "no-play" if label == "no_play" else "play",
+                "confidence": round(confidence, 4)
+            })
+
+            frame_buffer = frame_buffer[stride_frames:]
+            window_start_frame += stride_frames
+
+        pbar.update(1)
+
+    stop_event.set()
+    pbar.close()
+    cap.release()
+
+    output = {"playNoPlayPredictions": predictions}
+    with open(output_path, "w") as f:
+        json.dump(output, f, indent=2)
+
+    print(f"Exported {len(predictions)} predictions to {output_path}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("video_path")
+    parser.add_argument("--model-path", default="best_model/model.onnx")
+    parser.add_argument("--output", "-o", help="Output JSON path")
+    args = parser.parse_args()
+
+    if args.output:
+        output_path = args.output
+    else:
+        p = Path(args.video_path)
+        output_path = str(p.parent / f"{p.stem}_predictions.json")
+
+    export_predictions(args.model_path, args.video_path, output_path)
