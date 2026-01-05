@@ -23,7 +23,7 @@ def frame_reader(cap, frame_queue, stop_event):
 
 
 def export_predictions(model_path: str, video_path: str, output_path: str):
-    session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider', "CUDAExecutionProvider"])
+    session = ort.InferenceSession(model_path, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
     cap = cv2.VideoCapture(video_path)
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
