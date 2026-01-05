@@ -130,17 +130,19 @@ def main():
 
     training_args = TrainingArguments(
         output_dir=output_dir,
-        num_train_epochs=15,              # small dataset, can train longer
+        num_train_epochs=10,             
         per_device_train_batch_size=4,
-        per_device_eval_batch_size=8,     # can eval with larger batch
-        gradient_accumulation_steps=4,    # effective batch size 16
-        learning_rate=2e-5,               # slightly lower for video models
-        weight_decay=0.01,                # regularization
+        per_device_eval_batch_size=8,     
+        gradient_accumulation_steps=4,   
+        learning_rate=1e-5,               
+        weight_decay=0.05,
+        max_grad_norm=1.0,              
         warmup_ratio=0.1,
         logging_steps=10,
         eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
+        greater_is_better=True,
         metric_for_best_model="accuracy",
         remove_unused_columns=False,
         fp16=torch.cuda.is_available(),
