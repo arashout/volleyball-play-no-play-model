@@ -9,6 +9,7 @@ from pathlib import Path
 from tqdm import tqdm
 from infer_onnx import preprocess_frame, LABELS
 from utils import NUM_FRAMES
+from smooth_predictions import smooth_predictions
 
 
 def frame_reader(cap, frame_queue, stop_event):
@@ -22,7 +23,7 @@ def frame_reader(cap, frame_queue, stop_event):
         frame_queue.put(preprocessed)
 
 
-def export_predictions(model_path: str, video_path: str, output_path: str):
+def generate_predictions(model_path: str, video_path: str, output_path: str, smooth: bool = False):
     session = ort.InferenceSession(model_path, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
     cap = cv2.VideoCapture(video_path)
 
@@ -85,11 +86,18 @@ def export_predictions(model_path: str, video_path: str, output_path: str):
     pbar.close()
     cap.release()
 
-    output = {"playNoPlayPredictions": predictions}
+    if smooth:
+        smoothed = smooth_predictions(predictions)
+        output = {"playNoPlayPredictions": smoothed}
+        print(f"Generated {len(predictions)} raw -> {len(smoothed)} smoothed predictions")
+    else:
+        output = {"playNoPlayPredictions": predictions}
+        print(f"Generated {len(predictions)} predictions")
+
     with open(output_path, "w") as f:
         json.dump(output, f, indent=2)
 
-    print(f"Exported {len(predictions)} predictions to {output_path}")
+    print(f"Saved to {output_path}")
 
 
 if __name__ == "__main__":
@@ -97,6 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("video_path")
     parser.add_argument("--model-path", default="best_model/model.onnx")
     parser.add_argument("--output", "-o", help="Output JSON path")
+    parser.add_argument("--smooth", action="store_true", help="Apply smoothing pipeline")
     args = parser.parse_args()
 
     if args.output:
@@ -105,4 +114,4 @@ if __name__ == "__main__":
         p = Path(args.video_path)
         output_path = str(p.parent / f"{p.stem}_predictions.json")
 
-    export_predictions(args.model_path, args.video_path, output_path)
+    generate_predictions(args.model_path, args.video_path, output_path, smooth=args.smooth)

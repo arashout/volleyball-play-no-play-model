@@ -2,7 +2,7 @@ import sys
 import boto3
 import tempfile
 from pathlib import Path
-from export_predictions import export_predictions
+from generate_predictions import generate_predictions
 
 MODEL_PATH = "/app/model.onnx"
 
@@ -15,7 +15,7 @@ def main():
         output_path = Path(tmpdir) / "predictions.json"
 
         s3.download_file(bucket, key, str(video_path))
-        export_predictions(MODEL_PATH, str(video_path), str(output_path))
+        generate_predictions(MODEL_PATH, str(video_path), str(output_path))
 
         result_key = key.replace("uploads/", "results/").replace(".mp4", "_predictions.json")
         s3.upload_file(str(output_path), bucket, result_key)
