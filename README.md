@@ -77,5 +77,8 @@ MODEL_PATH=output/best_model uv run python train.py
 - Extract clips using CSV of rallies
 - Use data augment to generate more clips
 - Train it on all data
-- Infer using ONNX
+- Export best model to ONNX
+  `uv run export_onnx_video_mae.py`
+- Generate predictions using ONNX model
+  `uv run generate_predictions.py --model-path output/model.onnx  ../boba_league_fall_2025_tournament_-_block_pink_vs_the_incrediballs.mp4`
 
