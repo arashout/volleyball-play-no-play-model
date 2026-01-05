@@ -3,24 +3,7 @@ import subprocess
 import csv
 import sys
 from pathlib import Path
-
-
-def time_to_seconds(time_str: str) -> float:
-    parts = time_str.split(":")
-    if len(parts) == 3:
-        h, m, s = parts
-        return int(h) * 3600 + int(m) * 60 + float(s)
-    elif len(parts) == 2:
-        m, s = parts
-        return int(m) * 60 + float(s)
-    return float(time_str)
-
-
-def seconds_to_time(seconds: float) -> str:
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = seconds % 60
-    return f"{h:02d}:{m:02d}:{s:06.3f}"
+from common import parse_time, format_duration
 
 
 def extract_screenshots(
@@ -39,11 +22,11 @@ def extract_screenshots(
         for row in reader:
             time = row["time"]
             action = row["action"].replace(" ", "_")
-            start_sec = time_to_seconds(time)
+            start_sec = parse_time(time)
 
             for i in range(fps):
                 frame_time = start_sec + (i / fps)
-                timestamp = seconds_to_time(frame_time)
+                timestamp = format_duration(frame_time)
                 filename = f"{time.replace(':', '_')}_{action}_f{i:02d}.jpg"
                 output_path = out / filename
 

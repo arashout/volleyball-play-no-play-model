@@ -9,6 +9,7 @@ import onnxruntime as ort
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils import normalize_video, NUM_FRAMES
+from scripts.common import format_duration
 
 
 def extract_frames_at_time(video_path, start_sec, end_sec, num_frames=NUM_FRAMES):
@@ -53,13 +54,6 @@ def resize_frames(frames, size=224):
         frame = frame[start_h : start_h + size, start_w : start_w + size]
         resized.append(frame)
     return np.stack(resized)
-
-
-def format_time(seconds):
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = seconds % 60
-    return f"{h:02d}:{m:02d}:{s:05.2f}"
 
 
 def process_video(video_path, onnx_path, window_seconds=3.0, stride_seconds=1.0):
@@ -109,7 +103,7 @@ def process_video(video_path, onnx_path, window_seconds=3.0, stride_seconds=1.0)
         )
 
         print(
-            f"{format_time(start_time)} - {format_time(end_time)}: {label} ({confidence:.2f})"
+            f"{format_duration(start_time)} - {format_duration(end_time)}: {label} ({confidence:.2f})"
         )
         current_time += stride_seconds
 
@@ -163,7 +157,7 @@ def main():
         results = merge_segments(results)
         print("\nMerged segments:")
         for r in results:
-            print(f"{format_time(r['start'])} - {format_time(r['end'])}: {r['label']}")
+            print(f"{format_duration(r['start'])} - {format_duration(r['end'])}: {r['label']}")
 
     if args.output:
         with open(args.output, "w") as f:

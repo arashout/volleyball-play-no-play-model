@@ -16,7 +16,7 @@ def export_to_onnx(model_path: str, output_path: str):
         dummy_input,
         output_path,
         export_params=True,
-        opset_version=14,
+        opset_version=18,
         do_constant_folding=True,
         input_names=["pixel_values"],
         output_names=["logits"],
