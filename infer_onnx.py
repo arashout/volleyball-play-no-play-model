@@ -2,25 +2,23 @@ import argparse
 import cv2
 import numpy as np
 import onnxruntime as ort
-from PIL import Image
 from utils import NUM_FRAMES
 
-MEAN = np.array([0.485, 0.456, 0.406])
-STD = np.array([0.229, 0.224, 0.225])
+MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 LABELS = ["no_play", "play"]
 
 
 def preprocess_frame(frame: np.ndarray) -> np.ndarray:
-    img = Image.fromarray(frame)
-    w, h = img.size
-    short_side = min(w, h)
-    scale = 224 / short_side
+    h, w = frame.shape[:2]
+    scale = min(224 / w, 224 / h)
     new_w, new_h = int(w * scale), int(h * scale)
-    img = img.resize((new_w, new_h), Image.BILINEAR)
-    left = (new_w - 224) // 2
-    top = (new_h - 224) // 2
-    img = img.crop((left, top, left + 224, top + 224))
-    arr = np.array(img, dtype=np.float32) / 255.0
+    resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+    padded = np.zeros((224, 224, 3), dtype=np.uint8)
+    top = (224 - new_h) // 2
+    left = (224 - new_w) // 2
+    padded[top:top + new_h, left:left + new_w] = resized
+    arr = padded.astype(np.float32) / 255.0
     arr = (arr - MEAN) / STD
     return arr.transpose(2, 0, 1)
 

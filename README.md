@@ -60,8 +60,15 @@ uv run python -m action_detector.view_labels './screenshots/3_05*.jpg' -l ./labe
 ## Augmentation
 `uv run python augmentations.py --video data/train/play/play_0002.mp4 --output preview.mp4`
 
+## Prepare Data.zip
+```bash
+python3 scripts/split_validation.py
+zip -r data.zip data/
+```
+
+
 ## Train
-MODEL_PATH=output/best_model DATA_DIR=game_state_incrediballs uv run python train.py
+MODEL_PATH=output/best_model uv run python train.py
 
 
 # Pipeline

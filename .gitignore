@@ -22,3 +22,5 @@ labels/
 best_model/
 
 processed_videos.txt
+
+.env

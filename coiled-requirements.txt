@@ -1,0 +1,5 @@
+opencv-python-headless
+onnxruntime-gpu
+numpy
+tqdm
+boto3
