@@ -2,10 +2,8 @@ import argparse
 import cv2
 import numpy as np
 import onnxruntime as ort
-from utils import NUM_FRAMES
+from utils import NUM_FRAMES, IMAGENET_MEAN, IMAGENET_STD
 
-MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 LABELS = ["no_play", "play"]
 
 
@@ -19,7 +17,7 @@ def preprocess_frame(frame: np.ndarray) -> np.ndarray:
     left = (224 - new_w) // 2
     padded[top:top + new_h, left:left + new_w] = resized
     arr = padded.astype(np.float32) / 255.0
-    arr = (arr - MEAN) / STD
+    arr = (arr - IMAGENET_MEAN) / IMAGENET_STD
     return arr.transpose(2, 0, 1)
 
 
